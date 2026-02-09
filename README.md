@@ -16,3 +16,14 @@ chmod +x calico-install.sh # on master node
 ./kube-install.sh # on all nodes
 ./calico-install.sh # on master node
 ```
+
+4. Install HAProxy (HA Master Scenario)
+```bash
+chmod +x haproxy-install.sh
+./haproxy-install.sh
+```
+
+5. Bootstrap Cluster
+```bash
+sudo kubeadm init --config kubeadm-config.yaml # on master node
+```
