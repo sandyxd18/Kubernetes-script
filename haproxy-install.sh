@@ -25,7 +25,7 @@ global
 
 defaults
     log     global
-    mode    http
+    mode    tcp
     timeout connect 5s
     timeout client  1m
     timeout server  1m
@@ -47,7 +47,7 @@ sudo systemctl restart haproxy
 
 cat <<EOF | sudo tee /etc/keepalived/keepalived.conf
 vrrp_script chk_haproxy {
-    script "/usr/local/bin/check_haproxy.sh"
+    script "pkill -0 haproxy"
     interval 2
     weight -20
 }
@@ -66,7 +66,7 @@ vrrp_instance VI_1 {
     }
 
     virtual_ipaddress {
-        <YOUR_LB_IP>/24
+        ${YOUR_LB_IP}/24
     }
 
     track_script {
@@ -77,13 +77,6 @@ EOF
 
 sudo systemctl enable keepalived
 sudo systemctl restart keepalived
-
-cat <<'EOF' | sudo tee /usr/local/bin/check_haproxy.sh
-#!/bin/bash
-pkill -0 haproxy
-EOF
-
-sudo chmod +x /usr/local/bin/check_haproxy.sh
 
 sudo systemctl start keepalived
 sudo systemctl start haproxy
