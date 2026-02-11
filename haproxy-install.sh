@@ -1,12 +1,21 @@
 #!/bin/bash
+set -e
 
 echo "=== HAProxy dan Keepalived Installation Script ==="
 
 read -p "Masukkan status HA (MASTER/BACKUP): " HA_STATE
 read -p "Masukkan prioritas HA (misal: 100 untuk MASTER, 90 untuk BACKUP): " HA_PRIORITY
 read -p "Masukkan IP Load Balancer virtual (misal: 192.168.100.100): " YOUR_LB_IP
-read -p "Masukkan IP Master Node 1 (misal: 192.168.100.101): " MASTER_NODE_1_IP
-read -p "Masukkan IP Master Node 2 (misal: 192.168.100.102): " MASTER_NODE_2_IP
+read -p "Masukkan prefix length untuk IP Load Balancer virtual (misal: 24): " PREFIX_LENGTH
+read -p "Masukkan jumlah Master Node (misal: 2): " MASTER_NODE_COUNT
+
+# Array untuk menyimpan IP master
+MASTER_NODES=()
+
+for (( i=1; i<=MASTER_NODE_COUNT; i++ )); do
+    read -p "Masukkan IP Master Node $i (misal: 192.168.100.101): " NODE_IP
+    MASTER_NODES+=("$NODE_IP")
+done
 
 sudo apt-get update
 sudo apt-get install -y haproxy keepalived iproute2 iputils-ping vim
@@ -17,6 +26,19 @@ EOF
 
 sudo sysctl --system
 
+# ===============================
+# Generate HAProxy backend server
+# ===============================
+BACKEND_SERVERS=""
+INDEX=1
+for IP in "${MASTER_NODES[@]}"; do
+    BACKEND_SERVERS+="    server master-node-${INDEX} ${IP}:6443 check\n"
+    ((INDEX++))
+done
+
+# ===============================
+# HAProxy config
+# ===============================
 cat <<EOF | sudo tee /etc/haproxy/haproxy.cfg
 global
     log stdout format raw local0
@@ -38,13 +60,15 @@ backend kubernetes-master-nodes
     mode tcp
     balance roundrobin
     option tcp-check
-    server master-node-1 ${MASTER_NODE_1_IP}:6443 check
-    server master-node-2 ${MASTER_NODE_2_IP}:6443 check
+${BACKEND_SERVERS}
 EOF
 
 sudo systemctl enable haproxy
 sudo systemctl restart haproxy
 
+# ===============================
+# Keepalived config
+# ===============================
 cat <<EOF | sudo tee /etc/keepalived/keepalived.conf
 vrrp_script chk_haproxy {
     script "pkill -0 haproxy"
@@ -66,7 +90,7 @@ vrrp_instance VI_1 {
     }
 
     virtual_ipaddress {
-        ${YOUR_LB_IP}/24
+        ${YOUR_LB_IP}/${PREFIX_LENGTH}
     }
 
     track_script {
