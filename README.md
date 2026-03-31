@@ -9,7 +9,6 @@ cd Kubernetes-script
 2. Run the script
 ```bash
 sudo bash kube-install.sh # on all nodes
-sudo bash calico-install.sh # on master node
 ```
 
 3. Install HAProxy (HA Master Scenario)
@@ -20,4 +19,9 @@ sudo bash haproxy-install.sh
 4. Bootstrap Cluster
 ```bash
 sudo kubeadm init --config kubeadm-config.yaml # on master node
+```
+
+5. Install CNI
+```bash
+sudo bash calico-install.sh # on master node
 ```
